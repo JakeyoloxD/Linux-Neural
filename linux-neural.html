@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Linux Distributions: A Neural History 1991–2026</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--fg:#cfe8ff;--dim:#5d7a96;--bg:#000;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);overflow:hidden;color:var(--fg);font-family:'JetBrains Mono',ui-monospace,monospace}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+  .hud{position:fixed;pointer-events:none;z-index:2}
+  #title{top:18px;left:22px}
+  #title h1{font-weight:300;font-size:13px;letter-spacing:.35em;color:#8fb8dc}
+  #title h2{font-weight:600;font-size:20px;letter-spacing:.08em;margin-top:4px;color:#e6f3ff}
+  #title p{font-size:11px;color:var(--dim);margin-top:6px;max-width:340px;line-height:1.5}
+  #year{bottom:86px;left:22px;font-size:68px;font-weight:300;letter-spacing:.04em;color:#e9f5ff;text-shadow:0 0 24px rgba(90,170,255,.55)}
+  #stats{bottom:68px;left:26px;font-size:11px;letter-spacing:.12em;color:#8fb8dc}
+  #stats b{color:#fff;font-weight:600}
+  #stats .d b{color:#ff6b6b}
+  #caption{top:16px;padding:8px 16px;background:rgba(0,0,0,.72);border-radius:4px;left:50%;transform:translateX(-50%);text-align:center;font-size:13px;letter-spacing:.06em;color:#dff0ff;max-width:560px;opacity:0;transition:opacity .8s;text-shadow:0 0 12px rgba(0,0,0,1)}
+  #caption small{display:block;font-size:10px;letter-spacing:.3em;color:#6fa6d6;margin-bottom:4px}
+  #legend{top:18px;right:22px;font-size:11px;line-height:1.75;text-align:right;color:#9fbcd6}
+  #legend span.sw{display:inline-block;width:18px;height:2px;vertical-align:middle;margin-left:8px;box-shadow:0 0 6px currentColor}
+  #legend .n{color:var(--dim);margin-left:6px}
+  #ticker{right:22px;bottom:86px;font-size:11px;line-height:1.7;text-align:right;width:300px}
+  #ticker div{transition:opacity .6s}
+  #ticker .born{color:#bfe3ff}
+  #ticker .died{color:#ff7a7a}
+  #controls{position:fixed;left:0;right:0;bottom:0;z-index:3;display:flex;align-items:center;gap:12px;padding:14px 22px;background:linear-gradient(transparent,rgba(0,0,0,.85))}
+  button{background:rgba(20,40,60,.6);border:1px solid #23415e;color:#cfe8ff;font:inherit;font-size:11px;letter-spacing:.1em;padding:7px 12px;cursor:pointer;border-radius:3px}
+  button:hover{border-color:#4f8fc9;color:#fff}
+  button.on{border-color:#5fb0ff;color:#fff;box-shadow:0 0 10px rgba(95,176,255,.35)}
+  input[type=range]{flex:1;accent-color:#5fb0ff;height:4px}
+  #tip{position:fixed;z-index:4;pointer-events:none;background:rgba(4,12,22,.92);border:1px solid #23415e;padding:9px 12px;font-size:11px;line-height:1.6;border-radius:3px;display:none;min-width:180px;box-shadow:0 0 20px rgba(60,140,220,.25)}
+  #tip .nm{font-size:13px;font-weight:600;color:#fff}
+  #tip .dead{color:#ff7a7a}
+  #tip .alive{color:#7dffb0}
+  #src{bottom:52px;right:22px;font-size:9px;color:#3e5a74;letter-spacing:.05em}
+  @media (max-width:760px){#legend,#ticker{display:none}#year{font-size:44px}#title p{display:none}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud" id="title">
+  <h1>NEURAL HISTORY OF</h1>
+  <h2>LINUX DISTRIBUTIONS</h2>
+  <p>One kernel, 1991. Every filament is a distribution growing outward through time. Branches are forks. Filaments that go dark have died. Hover for details, click to isolate a lineage.</p>
+</div>
+<div class="hud" id="caption"></div>
+<div class="hud" id="legend"></div>
+<div class="hud" id="ticker"></div>
+<div class="hud" id="year">1991</div>
+<div class="hud" id="stats">ALIVE <b id="sA">0</b> &nbsp; BORN <b id="sB">0</b> &nbsp; <span class="d">DEAD <b id="sD">0</b></span></div>
+<div class="hud" id="src">Lineage: Wikipedia "List of Linux distributions". Years approximate.</div>
+<div id="tip"></div>
+<div id="controls">
+  <button id="play" class="on">PAUSE</button>
+  <button id="restart">RESTART</button>
+  <button data-sp="0.5">0.5×</button><button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button>
+  <input type="range" id="scrub" min="1991" max="2026.9" step="0.01" value="1991">
+  <button id="labels">LABELS: KEY</button>
+</div>
+<script>
+// ---------- DATA: name|parent|start|end ----------
+const RAW = `
+Linux kernel|-|1991|
+MCC Interim|Linux kernel|1992|1996
+SLS|Linux kernel|1992|1994
+Yggdrasil|Linux kernel|1992|1995
+TAMU Linux|Linux kernel|1992|1993
+Slackware|SLS|1993|
+Debian|Linux kernel|1993|
+Red Hat Linux|Linux kernel|1994|2003
+SUSE|Slackware|1994|
+Caldera OpenLinux|Red Hat Linux|1995|2002
+MkLinux|Linux kernel|1996|2002
+tomsrtbt|Linux kernel|1997|2002
+Linux Router Project|Linux kernel|1997|2003
+LEAF Project|Linux Router Project|2001|
+Turbolinux|Red Hat Linux|1997|2019
+Mandriva|Red Hat Linux|1998|2011
+Vine Linux|Red Hat Linux|1998|
+ZipSlack|Slackware|1998|2007
+Yellow Dog Linux|Red Hat Linux|1999|2012
+Red Flag Linux|Red Hat Linux|1999|2014
+VectorLinux|Slackware|1999|
+Linux From Scratch|Linux kernel|1999|
+Sorcerer|Linux kernel|1999|2002
+Source Mage|Sorcerer|2002|
+Corel Linux|Debian|1999|2001
+Xandros|Corel Linux|2001|2011
+Libranet|Debian|1999|2006
+Progeny Debian|Debian|2000|2007
+Knoppix|Debian|2000|
+Finnix|Debian|2000|
+Miracle Linux|Red Hat Linux|2000|
+Rocks Cluster|Red Hat Linux|2000|
+SUSE Linux Enterprise|SUSE|2000|
+SmoothWall|Linux kernel|2000|
+Gentoo|Linux kernel|2000|
+Ututo|Gentoo|2000|2012
+CRUX|Linux kernel|2001|
+Linspire|Debian|2001|2008
+Arch Linux|Linux kernel|2002|
+Red Hat Enterprise Linux|Red Hat Linux|2002|
+BLAG Linux|Red Hat Linux|2002|2016
+Slax|Slackware|2002|
+Fedora|Red Hat Linux|2003|
+PCLinuxOS|Mandriva|2003|
+Kanotix|Debian|2003|
+MEPIS|Debian|2003|2013
+Damn Small Linux|Knoppix|2003|
+KateOS|Slackware|2003|2009
+Puppy Linux|Linux kernel|2003|
+GoboLinux|Linux kernel|2003|
+NixOS|Linux kernel|2003|
+SystemRescue|Gentoo|2003|
+Ubuntu|Debian|2004|
+CentOS|Red Hat Enterprise Linux|2004|2024
+Scientific Linux|Red Hat Enterprise Linux|2004|2024
+Asianux|Red Hat Enterprise Linux|2004|
+Berry Linux|Fedora|2004|
+Grml|Debian|2004|
+Univention|Debian|2004|
+Deepin|Debian|2004|
+Zenwalk|Slackware|2004|
+Frugalware|Slackware|2004|2022
+Feather Linux|Knoppix|2004|2005
+T2 SDE|Linux kernel|2004|
+OpenWrt|Linux kernel|2004|
+Kubuntu|Ubuntu|2005|
+Edubuntu|Ubuntu|2005|
+openSUSE|SUSE|2005|
+Maemo|Debian|2005|2010
+Pardus|Debian|2005|
+Elive|Debian|2005|
+Pentoo|Gentoo|2005|
+Sabayon|Gentoo|2005|2020
+NimbleX|Slackware|2005|2010
+Alpine Linux|Linux kernel|2005|
+DD-WRT|Linux kernel|2005|
+rPath|Linux kernel|2005|2011
+Foresight Linux|rPath|2005|2014
+dyne:bolic|Linux kernel|2005|
+Xubuntu|Ubuntu|2006|
+Linux Mint|Ubuntu|2006|
+Oracle Linux|Red Hat Enterprise Linux|2006|
+gNewSense|Ubuntu|2006|2016
+BackTrack|Slax|2006|2013
+Vyatta|Debian|2006|2013
+LiMux|Debian|2006|2017
+Dreamlinux|Debian|2006|2012
+Ubuntu Studio|Ubuntu|2007|
+Mythbuntu|Ubuntu|2007|2016
+Gobuntu|Ubuntu|2007|2008
+gOS|Ubuntu|2007|2009
+Trisquel|Ubuntu|2007|
+Sabily|Ubuntu|2007|2011
+antiX|Debian|2007|
+Sidux|Debian|2007|2010
+Canaima|Debian|2007|
+Calculate Linux|Gentoo|2007|
+Absolute Linux|Slackware|2007|
+Zorin OS|Ubuntu|2008|
+Ubuntu Netbook|Ubuntu|2008|2011
+EasyPeasy|Ubuntu|2008|2012
+CrunchBang|Debian|2008|2015
+TurnKey Linux|Debian|2008|
+Proxmox VE|Debian|2008|
+Astra Linux|Debian|2008|
+Moblin|Fedora|2008|2010
+Funtoo|Gentoo|2008|2023
+Damn Vulnerable Linux|Slackware|2008|2011
+Android|Linux kernel|2008|
+SliTaz|Linux kernel|2008|
+Void Linux|Linux kernel|2008|
+Lubuntu|Ubuntu|2009|
+Netrunner|Kubuntu|2009|
+Tails|Debian|2009|
+ClearOS|Red Hat Enterprise Linux|2009|2023
+Salix OS|Zenwalk|2009|
+ChromiumOS|Gentoo|2009|
+Arch Linux ARM|Arch Linux|2009|
+Parabola|Arch Linux|2009|
+CyanogenMod|Android|2009|2016
+Android-x86|Android|2009|
+Tiny Core Linux|Linux kernel|2009|
+Joli OS|Ubuntu|2010|2013
+BackBox|Ubuntu|2010|
+Pinguy OS|Ubuntu|2010|
+Peppermint OS|Ubuntu|2010|
+Ubuntu Kylin|Ubuntu|2010|
+LMDE|Debian|2010|
+aptosid|Sidux|2010|
+Mageia|Mandriva|2010|
+ROSA Linux|Mandriva|2010|
+Amazon Linux|Red Hat Enterprise Linux|2010|
+Korora|Fedora|2010|2018
+Fuduntu|Fedora|2010|2013
+MeeGo|Moblin|2010|2011
+Chakra|Arch Linux|2010|2021
+Porteus|Slax|2010|
+Replicant|Android|2010|
+4MLinux|Linux kernel|2010|
+elementary OS|Ubuntu|2011|
+Bodhi Linux|Ubuntu|2011|
+Goobuntu|Ubuntu|2011|2018
+Emmabuntüs|Xubuntu|2011|
+Mer|MeeGo|2011|2019
+Russian Fedora Remix|Fedora|2011|2019
+ChromeOS|ChromiumOS|2011|
+Manjaro|Arch Linux|2011|
+ArchBang|Arch Linux|2011|
+Paranoid Android|Android|2011|
+Fire OS|Android|2011|
+Ubuntu GNOME|Ubuntu|2012|2017
+LXLE|Lubuntu|2012|
+Linux Lite|Ubuntu|2012|
+Ubuntu TV|Ubuntu|2012|2014
+Raspberry Pi OS|Debian|2012|
+Whonix|Debian|2012|
+SparkyLinux|Debian|2012|
+OpenMandriva|Mandriva|2012|
+Qubes OS|Fedora|2012|
+Tizen|MeeGo|2012|
+Antergos|Arch Linux|2012|2019
+Resurrection Remix|Android|2012|2021
+Bedrock Linux|Linux kernel|2012|
+GNU Guix System|Linux kernel|2012|
+Ubuntu Touch|Ubuntu|2013|2017
+Kali Linux|Debian|2013|
+Parrot OS|Debian|2013|
+SteamOS|Debian|2013|
+Q4OS|Debian|2013|
+SolydXK|Debian|2013|
+VyOS|Vyatta|2013|
+Sailfish OS|Mer|2013|
+BlackArch|Arch Linux|2013|
+KaOS|Arch Linux|2013|
+Container Linux|ChromeOS|2013|2020
+OmniROM|Android|2013|
+Firefox OS|Android|2013|2016
+Ubuntu MATE|Ubuntu|2014|
+Devuan|Debian|2014|
+MX Linux|antiX|2014|
+Kali NetHunter|Kali Linux|2014|
+GeckoLinux|openSUSE|2014|
+CopperheadOS|Android|2014|
+DivestOS|CyanogenMod|2014|2024
+GalliumOS|Xubuntu|2015|2022
+BunsenLabs|CrunchBang|2015|
+Endless OS|Debian|2015|
+Remix OS|Android-x86|2015|2017
+Solus|Linux kernel|2015|
+Clear Linux|Linux kernel|2015|2025
+Ubuntu Budgie|Ubuntu|2016|
+KDE neon|Ubuntu|2016|
+LineageOS|CyanogenMod|2016|
+Pop!_OS|Ubuntu|2017|
+UBports|Ubuntu Touch|2017|
+PureOS|Debian|2017|
+ArchLabs|Arch Linux|2017|2022
+Artix Linux|Arch Linux|2017|
+Hyperbola|Arch Linux|2017|
+KaiOS|Firefox OS|2017|
+postmarketOS|Alpine Linux|2017|
+gLinux|Debian|2018|
+Flatcar|Container Linux|2018|
+/e/ OS|LineageOS|2018|
+CentOS Stream|Red Hat Enterprise Linux|2019|
+EndeavourOS|Antergos|2019|
+GrapheneOS|CopperheadOS|2019|
+CalyxOS|Android|2019|
+Ubuntu Unity|Ubuntu|2020|
+Twister OS|Raspberry Pi OS|2020|
+Garuda Linux|Arch Linux|2020|
+Rocky Linux|Red Hat Enterprise Linux|2021|
+AlmaLinux|Red Hat Enterprise Linux|2021|
+Nobara|Fedora|2021|
+CachyOS|Arch Linux|2021|
+Chimera Linux|Linux kernel|2021|
+Ubuntu Cinnamon|Ubuntu|2022|
+SteamOS 3|Arch Linux|2022|
+Asahi Linux|Fedora|2022|
+Bazzite|Fedora|2023|
+Omarchy|Arch Linux|2025|
+`;
+
+const CAPTIONS = [
+  [1991.05,"1991","Linus Torvalds posts a hobby kernel to comp.os.minix."],
+  [1992.1,"1992","The first distributions bundle the kernel with GNU tools: MCC, SLS, Yggdrasil."],
+  [1993.1,"1993","Slackware and Debian are born. Both are still alive today."],
+  [1994.2,"1994","Red Hat and SUSE open the commercial era."],
+  [1998.1,"1998","Mandrake forks Red Hat."],
+  [2000.1,"2000","Gentoo arrives. Compile everything yourself."],
+  [2002.2,"2002","Arch Linux: keep it simple. Red Hat splits off an enterprise product."],
+  [2003.4,"2003","Red Hat Linux dies. Fedora and RHEL carry the line."],
+  [2004.6,"2004","Ubuntu launches. The Debian branch is about to explode."],
+  [2008.6,"2008","Android ships on the Linux kernel."],
+  [2011.5,"2011","Mandriva ends. Mageia and OpenMandriva carry on its code."],
+  [2014.3,"2014","The systemd dispute: Devuan forks Debian."],
+  [2020.8,"2020","Red Hat cuts CentOS 8 short."],
+  [2021.2,"2021","Rocky Linux and AlmaLinux rise to replace it."],
+  [2024.4,"2024","CentOS Linux reaches end of life."],
+  [2026.3,"2026","35 years on: one kernel, hundreds of descendants."]
+];
+
+const FAMILY_COLORS = {
+  "Debian":"#ff4f88","Ubuntu":"#ff9636","Red Hat Linux":"#ff4d43","Fedora":"#4e8cff",
+  "Mandriva":"#ffc94a","Slackware":"#8aa8ff","SUSE":"#5fe39a","Gentoo":"#b48cff",
+  "Arch Linux":"#38d4ff","Android":"#9dff63","ChromiumOS":"#e3a7ff","Knoppix":"#ff7fb8"
+};
+const LEGEND_KEYS = ["Debian","Ubuntu","Red Hat Linux","Fedora","Mandriva","Slackware","SUSE","Gentoo","Arch Linux","Android","Independent"];
+const INDEP_COLOR = "#7fe6d4", EARLY_COLOR = "#ffe08a";
+
+// ---------- build tree ----------
+const nodes = [], byName = {};
+RAW.trim().split("\n").forEach((l,i)=>{
+  const [name,parent,s,e] = l.split("|");
+  const n = {name, parentName:parent, start:+s + (i%7)*0.07, end:e?+e+0.5:null, children:[], i};
+  nodes.push(n); byName[name]=n;
+});
+const root = byName["Linux kernel"]; root.start = 1991.0;
+nodes.forEach(n=>{ if(n!==root){ n.parent = byName[n.parentName]; n.parent.children.push(n);} });
+function size(n){ return n.sz = 1 + n.children.reduce((a,c)=>a+size(c),0); }
+size(root);
+function colorOf(n){
+  let p=n; while(p && p!==root){ if(FAMILY_COLORS[p.name]) return FAMILY_COLORS[p.name]; p=p.parent; }
+  return n.start<1996 && !n.children.length ? EARLY_COLOR : INDEP_COLOR;
+}
+function famOf(n){ let p=n; while(p&&p!==root){ if(FAMILY_COLORS[p.name]&&LEGEND_KEYS.includes(p.name)) return p.name; p=p.parent;} return "Independent"; }
+nodes.forEach(n=>{ n.color=colorOf(n); n.fam=famOf(n); n.rgb=hex(n.color); n.seed=Math.random()*1000; n.depth = n===root?0:n.parent.depth+1; });
+function hex(h){ return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
+// key nodes get permanent labels
+nodes.forEach(n=>{ n.key = n.sz>=3 || ["Linux Mint","Pop!_OS","Manjaro","Kali Linux","CentOS","Rocky Linux","AlmaLinux","ChromeOS","Alpine Linux","NixOS","LineageOS","Devuan","elementary OS","Zorin OS","EndeavourOS","Void Linux","Puppy Linux","GrapheneOS","SteamOS 3","Tails","Qubes OS","Raspberry Pi OS","MX Linux","Solus","Omarchy","CachyOS","Bazzite"].includes(n.name); });
+
+// angular layout: weight by subtree size, self slot in the middle
+const W = s => Math.pow(s,0.82);
+function layout(n,a0,a1){
+  const kids = n.children.slice().sort((a,b)=>a.start-b.start);
+  if(n===root){
+    // interleave big and small families so the bloom is balanced
+    kids.sort((a,b)=>b.sz-a.sz);
+    const order=[]; kids.forEach((k,i)=> i%2? order.push(k): order.unshift(k));
+    const tot = order.reduce((a,k)=>a+W(k.sz),0);
+    let a=a0; order.forEach(k=>{ const span=(a1-a0)*W(k.sz)/tot; layout(k,a,a+span); a+=span; });
+    n.angle=0; return;
+  }
+  const slots = kids.slice(); const mid = Math.floor(slots.length/2); slots.splice(mid,0,n);
+  const tot = slots.reduce((a,k)=>a+(k===n?1:W(k.sz)),0);
+  let a=a0;
+  slots.forEach(k=>{ const span=(a1-a0)*(k===n?1:W(k.sz))/tot;
+    if(k===n) n.angle=a+span/2; else layout(k,a,a+span); a+=span; });
+}
+layout(root,-Math.PI/2,Math.PI*1.5);
+
+// ---------- geometry ----------
+const Y0=1991, Y1=2026.9;
+const R = y => Math.max(0,(y-Y0))*10;   // world units: 10 per year
+const RMAX = R(Y1);
+function wob(n,r){ return n.angle + 0.018*Math.sin(r*0.045+n.seed) + 0.008*Math.sin(r*0.13+n.seed*2); }
+function angDiff(a,b){ let d=a-b; while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI; return d; }
+function P(a,r){ return [Math.cos(a)*r, Math.sin(a)*r]; }
+nodes.forEach(n=>{
+  n.rs = R(n.start);
+  if(n===root) return;
+  const p=n.parent;
+  const pEnd = p===root? 0 : (p.end? R(p.end):Infinity);
+  if(p===root){ n.rb=0; n.ab=n.angle; return; }
+  // dendrite-style connector: wider angular jumps get a longer diagonal run
+  const da = Math.abs(angDiff(n.angle,p.angle));
+  const L = Math.max(4, Math.min(48, da*n.rs*0.9));
+  n.rb = Math.max(p.rs+0.5, Math.min(n.rs-L, pEnd));
+  n.ab = wob(p,n.rb);
+});
+
+// ---------- canvas ----------
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+let DPR=1, CW=0, CH=0;
+function resize(){ DPR=Math.min(2,window.devicePixelRatio||1); CW=innerWidth; CH=innerHeight; cv.width=CW*DPR; cv.height=CH*DPR; }
+addEventListener('resize',resize); resize();
+const CY=()=>CH/2-22;
+
+// glow sprite
+function sprite(col,sz){ const c=document.createElement('canvas'); c.width=c.height=sz; const g=c.getContext('2d');
+  const gr=g.createRadialGradient(sz/2,sz/2,0,sz/2,sz/2,sz/2);
+  gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(.18,col); gr.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=gr; g.fillRect(0,0,sz,sz); return c; }
+nodes.forEach(n=>{ n.spr = sprite(`rgba(${n.rgb},.55)`,64); });
+const redSpr = sprite('rgba(255,60,60,.6)',64), whiteSpr = sprite('rgba(170,215,255,.5)',64);
+
+// ---------- state ----------
+let t=Y0, playing=true, speed=1, labelMode=1; // 0 none,1 key,2 all
+const SEC_PER_YEAR = 2.0;
+let rot=0, scale=1, focus=null, hover=null;
+let pulses=[], sparks=[], rings=[];
+const events=[]; let shownCaption=-1;
+nodes.forEach(n=>{ n.born=false; n.dead=false; n.bornAt=0; n.diedAt=0; });
+
+function resetState(toT){
+  pulses=[]; sparks=[]; rings=[];
+  nodes.forEach(n=>{ n.born = n.start<=toT; n.dead = n.end!=null && n.end<=toT; n.bornAt=-99; n.diedAt=-99; });
+  events.length=0; shownCaption=-1; captionEl.style.opacity=0;
+}
+
+// ---------- UI ----------
+const yearEl=document.getElementById('year'), sA=document.getElementById('sA'), sB=document.getElementById('sB'), sD=document.getElementById('sD');
+const captionEl=document.getElementById('caption'), tickerEl=document.getElementById('ticker'), tip=document.getElementById('tip');
+const scrub=document.getElementById('scrub'), playBtn=document.getElementById('play');
+playBtn.onclick=()=>{ playing=!playing; if(playing&&t>=Y1) {t=Y0;resetState(t);} playBtn.textContent=playing?'PAUSE':'PLAY'; playBtn.classList.toggle('on',playing); };
+document.getElementById('restart').onclick=()=>{ t=Y0; resetState(t); playing=true; playBtn.textContent='PAUSE'; playBtn.classList.add('on'); };
+document.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{ speed=+b.dataset.sp; document.querySelectorAll('[data-sp]').forEach(x=>x.classList.toggle('on',x===b)); });
+scrub.oninput=()=>{ t=+scrub.value; resetState(t); };
+const lb=document.getElementById('labels');
+lb.onclick=()=>{ labelMode=(labelMode+1)%3; lb.textContent='LABELS: '+['OFF','KEY','ALL'][labelMode]; };
+// legend
+(function(){ const cnt={}; nodes.forEach(n=>{ if(n!==root) cnt[n.fam]=(cnt[n.fam]||0)+1; });
+  document.getElementById('legend').innerHTML = LEGEND_KEYS.map(k=>{ const c=k==="Independent"?INDEP_COLOR:FAMILY_COLORS[k];
+    return `<div>${k}<span class="n">${cnt[k]||0}</span><span class="sw" style="background:${c};color:${c}"></span></div>`; }).join('') +
+    `<div style="margin-top:6px;color:#ff7a7a">discontinued<span class="sw" style="background:#5a2a2a;color:#ff4040"></span></div>`;
+})();
+
+function pushEvent(txt,cls){ events.unshift({txt,cls}); if(events.length>9) events.pop();
+  tickerEl.innerHTML = events.map((e,i)=>`<div class="${e.cls}" style="opacity:${1-i*0.1}">${e.txt}</div>`).join(''); }
+
+// ---------- lineage focus ----------
+function lineage(n){ const s=new Set(); let p=n; while(p){ s.add(p); p=p.parent; }
+  (function down(x){ s.add(x); x.children.forEach(down); })(n); return s; }
+let focusSet=null;
+
+// ---------- interaction ----------
+let mx=-1,my=-1;
+cv.addEventListener('mousemove',e=>{ mx=e.clientX; my=e.clientY; });
+cv.addEventListener('mouseleave',()=>{ mx=-1; hover=null; tip.style.display='none'; });
+cv.addEventListener('click',()=>{ if(hover){ focus = focus===hover?null:hover; focusSet = focus? lineage(focus):null; } else { focus=null; focusSet=null; } });
+
+function toWorld(sx,sy){ // screen -> world polar
+  const x=(sx-CW/2)/scale, y=(sy-CY())/scale;
+  const c=Math.cos(-rot), s=Math.sin(-rot);
+  const wx=x*c-y*s, wy=x*s+y*c;
+  return [Math.hypot(wx,wy), Math.atan2(wy,wx)];
+}
+function pick(){
+  if(mx<0) return null;
+  const [r,a]=toWorld(mx,my); let best=null, bd=9/scale;
+  if(r<14/scale+3) return root;
+  for(const n of nodes){ if(n===root||!n.born) continue;
+    const re = tipR(n); if(r<n.rs-2||r>re+2) continue;
+    const d=Math.abs(angDiff(a,wob(n,r)))*r; if(d<bd){bd=d;best=n;} }
+  return best;
+}
+function tipR(n){ const e = n.end!=null? Math.min(t,n.end):t; return Math.max(n.rs, R(e)); }
+function status(n){ return n.end!=null && n.end<=t ? 'dead':'alive'; }
+
+// ---------- drawing helpers ----------
+function lifePath(n, r0, r1){
+  ctx.beginPath();
+  const step=2.2; let first=true;
+  for(let r=r0; r<=r1+0.001; r+=step){ const rr=Math.min(r,r1); const [x,y]=P(wob(n,rr),rr); first?ctx.moveTo(x,y):ctx.lineTo(x,y); first=false; if(rr===r1) break; }
+  const [x,y]=P(wob(n,r1),r1); ctx.lineTo(x,y);
+}
+function connectorPath(n, u){ // from branch point to node start, u in 0..1 progress
+  ctx.beginPath();
+  const N=18; const a0=n.ab, a1=wob(n,n.rs), r0=n.rb, r1=n.rs;
+  const spiral = n.parent===root ? 0.9 : 0;
+  for(let i=0;i<=N*u;i++){ const k=i/N; const e=k*k*(3-2*k);
+    const a = a0 + angDiff(a1,a0)*e - spiral*(1-k)*(1-k); const r = r0+(r1-r0)*k;
+    const [x,y]=P(a,r); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+}
+function pointOnLife(n,r){ return P(wob(n,r),r); }
+
+// ---------- simulation step ----------
+let last=performance.now(), clock=0;
+function step(dt){
+  clock+=dt;
+  if(playing && t<Y1){ t=Math.min(Y1, t + dt*speed/SEC_PER_YEAR); scrub.value=t; }
+  if(t>=Y1 && playing){ /* hold at end, keep firing */ }
+  // births / deaths
+  for(const n of nodes){
+    if(!n.born && n.start<=t){ n.born=true; n.bornAt=clock;
+      if(n!==root){ const [x,y]=pointOnLife(n,n.rs);
+        for(let k=0;k<16;k++){ const a=Math.random()*6.283, v=8+Math.random()*26; sparks.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,c:n.spr}); }
+        rings.push({x,y,r:0,life:1,rgb:n.rgb});
+        pushEvent(`${Math.floor(n.start)} &nbsp;+ ${n.name} <span style="color:#4f6f8f">← ${n.parent.name}</span>`,'born');
+        for(let k=0;k<3;k++) pulses.push({n, r:n.rb, v:28+Math.random()*20, onConn:true});
+      } else { rings.push({x:0,y:0,r:0,life:1,rgb:[150,210,255]}); }
+    }
+    if(n.born && !n.dead && n.end!=null && n.end<=t){ n.dead=true; n.diedAt=clock;
+      const [x,y]=pointOnLife(n,R(n.end));
+      for(let k=0;k<22;k++){ const a=Math.random()*6.283, v=4+Math.random()*16; sparks.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1.4,c:redSpr}); }
+      pushEvent(`${Math.floor(n.end)} &nbsp;† ${n.name}`,'died');
+    }
+  }
+  // captions
+  for(let i=CAPTIONS.length-1;i>=0;i--){ if(t>=CAPTIONS[i][0]){ if(shownCaption!==i){ shownCaption=i;
+        captionEl.innerHTML=`<small>${CAPTIONS[i][1]}</small>${CAPTIONS[i][2]}`; captionEl.style.opacity=1; captionEl._t=clock; } break; } }
+  if(captionEl._t && clock-captionEl._t>5.5/Math.max(1,speed*0.7)) captionEl.style.opacity=0;
+
+  // spawn pulses: from the core into living roots, and along living filaments
+  const alive = nodes.filter(n=>n!==root&&n.born&&!n.dead);
+  const rate = 2 + alive.length*0.09;
+  if(Math.random()<rate*dt){
+    if(Math.random()<0.35){ const rk=root.children.filter(c=>c.born&&!c.dead); if(rk.length){ const n=rk[Math.random()*rk.length|0]; pulses.push({n,r:0,v:34+Math.random()*30,onConn:true}); } }
+    else if(alive.length){ const n=alive[Math.random()*alive.length|0]; pulses.push({n,r:n.rs,v:24+Math.random()*30,onConn:false}); }
+  }
+  // advance pulses, hop to children at branch points (synaptic cascade)
+  const np=[];
+  for(const p of pulses){
+    const n=p.n; const r0=p.r; p.r += p.v*dt;
+    if(p.onConn){ if(p.r>=n.rs){ p.onConn=false; p.r=n.rs; } np.push(p); continue; }
+    const tip=tipR(n);
+    for(const c of n.children){ if(c.born && c.rb>r0 && c.rb<=p.r && Math.random()<0.55 && pulses.length<500) np.push({n:c,r:c.rb,v:p.v*(0.9+Math.random()*0.3),onConn:true}); }
+    if(p.r<tip) np.push(p);
+    else if(!n.dead && Math.random()<0.5){ const [x,y]=pointOnLife(n,tip); sparks.push({x,y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.5,c:n.spr}); }
+  }
+  pulses=np;
+  sparks.forEach(s=>{ s.x+=s.vx*dt; s.y+=s.vy*dt; s.vx*=0.96; s.vy*=0.96; s.life-=dt*0.9; }); sparks=sparks.filter(s=>s.life>0);
+  rings.forEach(g=>{ g.r+=dt*40; g.life-=dt*0.8; }); rings=rings.filter(g=>g.life>0);
+
+  // camera: zoom to fit the grown tree, slow rotation
+  const viewR = Math.max(R(t)+14, 40);
+  const target = Math.min(CW,CH*1.08)*0.43/viewR;
+  scale += (target-scale)*Math.min(1,dt*1.8);
+  rot += dt*0.018;
+}
+
+// ---------- render ----------
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='rgba(0,0,0,0.9)'; ctx.fillRect(0,0,CW,CH);
+  // vignette tint
+  const vg=ctx.createRadialGradient(CW/2,CH/2,0,CW/2,CH/2,Math.max(CW,CH)*0.7);
+  vg.addColorStop(0,'rgba(10,30,55,0.35)'); vg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=vg; ctx.fillRect(0,0,CW,CH);
+
+  ctx.translate(CW/2,CY()); ctx.scale(scale,scale); ctx.rotate(rot);
+  const px=1/scale;
+
+  // year rings
+  ctx.lineWidth=px;
+  for(let y=1995;y<=2025;y+=5){ if(y>t+0.5) break; const r=R(y);
+    ctx.strokeStyle='rgba(70,120,170,0.13)'; ctx.setLineDash([2*px,6*px]); ctx.beginPath(); ctx.arc(0,0,r,0,6.283); ctx.stroke(); }
+  ctx.setLineDash([]);
+  // current time front
+  ctx.strokeStyle='rgba(120,190,255,0.10)'; ctx.lineWidth=1.5*px; ctx.beginPath(); ctx.arc(0,0,R(t),0,6.283); ctx.stroke();
+
+  ctx.globalCompositeOperation='lighter';
+  ctx.lineCap='round'; ctx.lineJoin='round';
+
+  // filaments
+  for(const n of nodes){
+    if(n===root||!n.born) continue;
+    const inF = !focusSet || focusSet.has(n);
+    const dim = inF?1:0.12;
+    const age = clock-n.bornAt; const grow = Math.min(1, age/0.9);
+    const conU = n.bornAt<0?1:grow;
+    const dead = status(n)==='dead';
+    const dAge = clock-n.diedAt;
+    const isHover = hover===n || focus===n;
+    let col, a1, a2;
+    if(dead){
+      const fl = n.diedAt>0 && dAge<2.2 ? (0.4+0.6*Math.abs(Math.sin(dAge*18)))*(1-dAge/2.2) : 0;
+      col = fl>0.02 ? `255,${70+60*(1-fl)|0},${60}` : '120,60,70';
+      a1 = (0.05+fl*0.25)*dim; a2=(0.22+fl*0.7)*dim;
+    } else { col=n.rgb.join(','); a1=0.09*dim; a2=0.75*dim; }
+    if(isHover){ a1*=2.2; a2=1; }
+    const re = tipR(n);
+    // connector
+    ctx.strokeStyle=`rgba(${col},${a1})`; ctx.lineWidth=(dead?3:5.5)*px; connectorPath(n,conU); ctx.stroke();
+    ctx.strokeStyle=`rgba(${col},${a2})`; ctx.lineWidth=(dead?0.8:1.25)*px*(isHover?1.8:1); connectorPath(n,conU); ctx.stroke();
+    if(conU<1) continue;
+    if(re>n.rs+0.2){
+      ctx.strokeStyle=`rgba(${col},${a1})`; ctx.lineWidth=(dead?3:5.5)*px; lifePath(n,n.rs,re); ctx.stroke();
+      ctx.strokeStyle=`rgba(${col},${a2})`; ctx.lineWidth=(dead?0.8:1.25)*px*(isHover?1.8:1); lifePath(n,n.rs,re); ctx.stroke();
+    }
+    // tip: growth cone glow for living, ember for dead
+    const [tx,ty]=pointOnLife(n,re);
+    if(!dead){ const s=(10+4*Math.sin(clock*3+n.seed))*px*(isHover?1.8:1); ctx.globalAlpha=0.8*dim; ctx.drawImage(n.spr,tx-s,ty-s,2*s,2*s); ctx.globalAlpha=1; }
+    else { const s=5*px; ctx.globalAlpha=0.45*dim; ctx.drawImage(redSpr,tx-s,ty-s,2*s,2*s); ctx.globalAlpha=1; }
+  }
+
+  // pulses
+  for(const p of pulses){ const n=p.n; if(focusSet&&!focusSet.has(n)) continue;
+    let x,y;
+    if(p.onConn){ const k=(p.r-n.rb)/Math.max(0.001,n.rs-n.rb); const kk=Math.max(0,Math.min(1,k)); const e=kk*kk*(3-2*kk);
+      const spiral = n.parent===root?0.9:0; const a=n.ab+angDiff(wob(n,n.rs),n.ab)*e - spiral*(1-kk)*(1-kk); const r=n.rb+(n.rs-n.rb)*kk; [x,y]=P(a,r); }
+    else [x,y]=pointOnLife(n,p.r);
+    const s=7*px; ctx.drawImage(whiteSpr,x-s,y-s,2*s,2*s); const s2=4*px; ctx.drawImage(n.spr,x-s2,y-s2,2*s2,2*s2);
+  }
+  // sparks & rings
+  for(const s of sparks){ const z=(3+3*s.life)*px; ctx.globalAlpha=Math.min(1,s.life); ctx.drawImage(s.c,s.x-z,s.y-z,2*z,2*z); }
+  ctx.globalAlpha=1;
+  for(const g of rings){ ctx.strokeStyle=`rgba(${g.rgb},${g.life*0.5})`; ctx.lineWidth=1.2*px; ctx.beginPath(); ctx.arc(g.x,g.y,g.r*px*0.6+1*px,0,6.283); ctx.stroke(); }
+
+  // core (the kernel)
+  const cs=(26+5*Math.sin(clock*2.2))*px; ctx.drawImage(whiteSpr,-cs,-cs,2*cs,2*cs);
+  const cs2=(12)*px; ctx.drawImage(whiteSpr,-cs2,-cs2,2*cs2,2*cs2);
+
+  // labels (screen-space so text stays upright)
+  ctx.globalCompositeOperation='source-over';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.textBaseline='middle';
+  const placed=[];
+  const cr=Math.cos(rot), sr=Math.sin(rot);
+  const toScreen=(x,y)=>[CW/2+(x*cr-y*sr)*scale, CY()+(x*sr+y*cr)*scale];
+  const list = nodes.filter(n=>n.born && n!==root).sort((a,b)=>b.sz-a.sz);
+  for(const n of list){
+    const age=clock-n.bornAt; const fresh = n.bornAt>0 && age<2.6;
+    const show = hover===n || focus===n || (focusSet&&focusSet.has(n)) || labelMode===2 || (labelMode===1 && (n.key || fresh)) || (labelMode===0 && fresh && false);
+    if(!show) continue;
+    const dead=status(n)==='dead';
+    const re=tipR(n); const [wx,wy]=pointOnLife(n,re);
+    const [sx,sy]=toScreen(wx,wy);
+    const ang=Math.atan2(sy-CY(),sx-CW/2);
+    const big = n.sz>=8;
+    ctx.font = `${big?600:400} ${big?12:10}px JetBrains Mono, monospace`;
+    const w=ctx.measureText(n.name).width;
+    const right = Math.cos(ang)>=0;
+    const lx = sx + Math.cos(ang)*8 + (right?0:-w), ly = sy + Math.sin(ang)*8;
+    const box=[lx-2,ly-7,w+4,14];
+    if(!(hover===n||focus===n) && placed.some(b=>b[0]<box[0]+box[2]&&box[0]<b[0]+b[2]&&b[1]<box[1]+box[3]&&box[1]<b[1]+b[3])) continue;
+    placed.push(box);
+    let alpha = dead?0.35:(n.key||labelMode===2?0.85:Math.max(0,1-Math.max(0,age-1.6)));
+    if(fresh) alpha=Math.max(alpha, Math.min(1,age*3)*(1-Math.max(0,age-1.8)/0.8));
+    if(focusSet && !focusSet.has(n)) alpha*=0.15;
+    if(hover===n||focus===n) alpha=1;
+    ctx.fillStyle = dead? `rgba(255,120,120,${alpha})` : `rgba(${n.rgb},${alpha})`;
+    ctx.shadowColor='rgba(0,0,0,0.9)'; ctx.shadowBlur=4;
+    ctx.fillText(n.name, lx, ly);
+    ctx.shadowBlur=0;
+  }
+  // kernel label
+  ctx.font='600 11px JetBrains Mono, monospace'; ctx.fillStyle='rgba(220,240,255,0.9)';
+  const kw=ctx.measureText('LINUX KERNEL').width; ctx.fillText('LINUX KERNEL', CW/2-kw/2, CY()+22);
+}
+
+// ---------- HUD ----------
+function hud(){
+  yearEl.textContent=Math.floor(Math.min(t,2026));
+  let a=0,b=0,d=0; for(const n of nodes){ if(n.start<=t){ b++; if(n.end!=null&&n.end<=t) d++; else a++; } }
+  sA.textContent=a; sB.textContent=b; sD.textContent=d;
+  hover = pick();
+  if(hover){
+    const n=hover, st = n===root?'alive':status(n);
+    const yrs = `${Math.floor(n.start)} – ${n.end!=null? Math.floor(n.end) : 'present'}`;
+    tip.innerHTML = `<div class="nm">${n.name}</div>`+
+      (n.parent?`<div>forked from <b>${n.parent.name}</b></div>`:`<div>the root of everything</div>`)+
+      `<div>${yrs}</div><div class="${st}">${st==='dead'?'† discontinued':'● active'}</div>`+
+      (n.sz>1?`<div style="color:#8fb8dc">${n.sz-1} descendant${n.sz>2?'s':''} in this map</div>`:'')+
+      `<div style="color:#4f6f8f;margin-top:4px">click to ${focus===n?'clear':'isolate lineage'}</div>`;
+    tip.style.display='block';
+    const tx=Math.min(mx+16, CW-tip.offsetWidth-10), ty=Math.min(my+16, CH-tip.offsetHeight-10);
+    tip.style.left=tx+'px'; tip.style.top=ty+'px'; cv.style.cursor='pointer';
+  } else { tip.style.display='none'; cv.style.cursor='crosshair'; }
+}
+
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  step(dt); draw(); hud();
+  requestAnimationFrame(frame);
+}
+resetState(Y0);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
